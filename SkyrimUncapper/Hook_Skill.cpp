@@ -161,16 +161,14 @@ void ImproveSkillByTraining_Hook(void* pPlayer, UInt32 skillID, UInt32 count)
 				levelData->points = (levelData->pointsMax > 0.0f) ? 0.1f : 0.0f;
 			if (levelData->points >= levelData->pointsMax)
 				levelData->points = (levelData->pointsMax > 0.0f) ? (levelData->pointsMax - 0.1f) : 0.0f;
-			return;
+
 			float expNeeded = levelData->pointsMax - levelData->points;
 			
 			ImprovePlayerSkillPoints_Original(skillData, skillID, expNeeded, 0, 0, 0, (i < count - 1));
 			
 		}
 		levelData->points += levelData->pointsMax * skillProgression;
-	}	
-	return;
-	
+	}		
 }
 
 void ImprovePlayerSkillPoints_Hook(PlayerSkills* skillData, UInt32 skillID, float exp, UInt64 unk1, UInt32 unk2, UInt8 unk3, bool unk4)
