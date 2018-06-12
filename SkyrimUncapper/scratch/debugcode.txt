@@ -1,0 +1,51 @@
+	PlayerSkills* skillData = *reinterpret_cast<PlayerSkills**>(reinterpret_cast<uintptr_t>(pPlayer)+0x10B0);
+	uintptr_t pp = g_thePlayer.GetUIntPtr();
+	uintptr_t pv = reinterpret_cast<uintptr_t>(pPlayer);
+	_MESSAGE("pp=%016I64X  pv=%016I64X", pp, pv);
+	pp += 0x10B0;
+	uintptr_t ppp = pv;
+	pv += 0x10B0;
+	_MESSAGE("after add %016I64X", pp);
+	uintptr_t pt = *reinterpret_cast<uintptr_t*>(pp);
+	_MESSAGE("pt = %016I64X", pt);
+	uintptr_t ptt = *reinterpret_cast<uintptr_t*>(pv);
+	_MESSAGE("ptt = %016I64X", ptt);
+	skillData = reinterpret_cast<PlayerSkills*>(ptt);
+	_MESSAGE("%.2f", skillData->data->levelPoints);
+
+	for (int j = 0; j < 18; ++j) {
+		UInt32 v1 = skillData->data->legendaryLevel[j];
+		float v2 = skillData->data->levelPoints;
+		float v3 = skillData->data->levelPointsMax;
+		float v4 = skillData->data->levelData[j].pointsMax;
+		_MESSAGE("v1=%d v2=%.2f v3=%.2f v4=%.2f ", v1, v2, v3, v4);
+		_MESSAGE("player:%p, skill:%d, points:%.2f, level:%.2f", g_thePlayer.GetPtr(), j+6, skillData->data->levelData[j].points, skillData->data->levelData[j].level);
+	}
+	return;
+	std::ofstream fstream;
+	fstream.open("uncap4.txt", std::ios::out);
+
+	for (uintptr_t i = ppp; i <= (ppp + 0xB00); i++) {
+		char * ptr = reinterpret_cast<char*>(i);
+
+		fstream << std::hex << int(i) << " = ";
+		fstream << std::hex << int(i - ppp) << " : ";
+		fstream << std::hex << int(*ptr) << std::endl;
+
+	}
+	
+	fstream.close();
+
+	fstream.open("uncap5.txt", std::ios::out);
+
+	for (uintptr_t i = reinterpret_cast<uintptr_t>(skillData->data); i <= (reinterpret_cast<uintptr_t>(skillData->data) + 0xB00); i = i + 0x4) {
+		char * ptr = reinterpret_cast<char*>(i);
+
+		fstream << std::hex << int(i) << " = ";
+		fstream << std::hex << int(i - reinterpret_cast<uintptr_t>(skillData->data)) << " : ";
+		fstream << std::hex << int(ptr[0]) << " " << int(ptr[1]) << " " << int(ptr[2]) << " " << int(ptr[3]) << std::endl;
+
+	}
+
+	fstream.close();
+	return;

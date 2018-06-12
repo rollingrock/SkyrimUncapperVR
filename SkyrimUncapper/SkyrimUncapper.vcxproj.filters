@@ -54,6 +54,9 @@
     <ClInclude Include="PluginAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Hooks_Debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -75,6 +78,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NiTypes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks_Debug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

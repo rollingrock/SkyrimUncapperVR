@@ -6,6 +6,10 @@
 #include "skse64_common/SafeWrite.h"
 #include "Relocation/RVA.h"
 #include "xbyak/xbyak.h"
+#include <iostream>
+#include <fstream>
+#include "Relocation/Pattern.h"
+#include "Hooks_Debug.h"
 
 using LevelData = PlayerSkills::StatData::LevelData;
 
@@ -120,12 +124,18 @@ float CalculateChargePointsPerUse_Hook(float basePoints, float enchantingLevel)
 
 void ImproveSkillByTraining_Hook(void* pPlayer, UInt32 skillID, UInt32 count)
 {
-	PlayerSkills* skillData = *reinterpret_cast<PlayerSkills**>(reinterpret_cast<uintptr_t>(pPlayer)+0x9B0);
+	PlayerSkills* skillData = *reinterpret_cast<PlayerSkills**>(reinterpret_cast<uintptr_t>(pPlayer)+0x10B0);
+
 	if (count < 1)
 		count = 1;
 	if ((skillID >= 6) && (skillID <= 23))
 	{
 		LevelData* levelData = &(skillData->data->levelData[skillID - 6]);
+		_MESSAGE("player:%p, skill:%d, points:%.2f, maxPoints:%.2f, level:%.2f", pPlayer, skillID, levelData->points, levelData->pointsMax, levelData->level);
+		for (int j = 0; j < 10; ++j) {
+			_MESSAGE("player:%p, skill:%d, points:%.2f, level:%.2f", pPlayer, skillID, skillData->data->levelData[j].points, skillData->data->levelData[j].level);
+		}
+		
 		float skillProgression = 0.0f;
 		if (levelData->pointsMax > 0.0f)
 		{
@@ -151,11 +161,16 @@ void ImproveSkillByTraining_Hook(void* pPlayer, UInt32 skillID, UInt32 count)
 				levelData->points = (levelData->pointsMax > 0.0f) ? 0.1f : 0.0f;
 			if (levelData->points >= levelData->pointsMax)
 				levelData->points = (levelData->pointsMax > 0.0f) ? (levelData->pointsMax - 0.1f) : 0.0f;
+			return;
 			float expNeeded = levelData->pointsMax - levelData->points;
+			
 			ImprovePlayerSkillPoints_Original(skillData, skillID, expNeeded, 0, 0, 0, (i < count - 1));
+			
 		}
 		levelData->points += levelData->pointsMax * skillProgression;
-	}
+	}	
+	return;
+	
 }
 
 void ImprovePlayerSkillPoints_Hook(PlayerSkills* skillData, UInt32 skillID, float exp, UInt64 unk1, UInt32 unk2, UInt8 unk3, bool unk4)
@@ -284,9 +299,8 @@ float GetSkillCap_Hook(UInt32 skillID)
 {
 	if ((skillID >= 6) && (skillID <= 23))
 	{
-#ifdef _DEBUG
 		_MESSAGE("function: %s, skillID: %d, skillCap: %d", __FUNCTION__, skillID, settings.settingsSkillCaps[skillID - 6]);
-#endif
+
 		return settings.settingsSkillCaps[skillID - 6];
 	}
 	else
@@ -295,6 +309,7 @@ float GetSkillCap_Hook(UInt32 skillID)
 #ifdef _DEBUG
 //		_MESSAGE("function: %s, skillCap: %.2f", __FUNCTION__, *skillCap);
 #endif
+		_MESSAGE("skillID=%d", skillID);
 		return 100.0f;
 	}
 }
@@ -429,15 +444,33 @@ void InitRVA()
 void Hook_Skill_Commit()
 {
 
+	Hooks_Debug_Init();
+
 	InitRVA();
 	//return;
-
+	
 	SafeWrite16(GetEffectiveSkillLevel.GetUIntPtr() + 0x34, 0x9090);
 
 	_MESSAGE("ImproveLevelExpBySkillLevel_Original: %016I64X", ImproveLevelExpBySkillLevel_Original.GetUIntPtr());
 
 	g_branchTrampoline.Write6Branch(ImproveSkillByTraining_Original.GetUIntPtr(), (uintptr_t)ImproveSkillByTraining_Hook);
+/*
+	static Utility::executable_meta executable;
 
+	executable.EnsureInit();
+
+	std::ofstream fstream;
+	fstream.open("uncap2.exe", std::ios::binary | std::ios::out);
+
+	for (uintptr_t i = executable.begin(); i <= executable.end(); i++) {
+		char * ptr = reinterpret_cast<char*>(i);
+
+		fstream << *ptr;
+
+	}
+
+	ASSERT(false);
+	*/
 	g_branchTrampoline.Write6Branch(CalculateChargePointsPerUse_Original.GetUIntPtr(), (uintptr_t)CalculateChargePointsPerUse_Hook);
 
 

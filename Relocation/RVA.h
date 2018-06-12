@@ -111,7 +111,7 @@ public:
 					SInt32 rel32 = 0;
 					RVAUtils::ReadMemory(rvaData->effectiveAddress + rvaData->indirectOffset, &rel32, sizeof(SInt32));
 					rvaData->effectiveAddress = rvaData->effectiveAddress + rvaData->instructionLength + rel32;
-					_MESSAGE("returned at2 %p", rvaData->effectiveAddress);
+					_MESSAGE("returned at2 %p : rel32=%d", rvaData->effectiveAddress, rel32);
 				}
 
 #if SHOW_ADDR

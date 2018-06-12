@@ -148,6 +148,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="GameSettings.h" />
+    <ClInclude Include="Hooks_Debug.h" />
     <ClInclude Include="Hook_Skill.h" />
     <ClInclude Include="NiTypes.h" />
     <ClInclude Include="PluginAPI.h" />
@@ -160,6 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameSettings.cpp" />
+    <ClCompile Include="Hooks_Debug.cpp" />
     <ClCompile Include="Hook_Skill.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="NiTypes.cpp" />
