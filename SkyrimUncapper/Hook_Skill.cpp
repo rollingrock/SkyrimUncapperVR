@@ -272,7 +272,9 @@ UInt64 ImproveAttributeWhenLevelUp_Hook(void* unk0, UInt8 unk1)
 
 void ModifyPerkPool_Hook(SInt8 count)
 {
-	UInt8* points = *reinterpret_cast<UInt8**>(g_thePlayer.GetPtr()) + 0xB01;
+//	UInt8* points = *reinterpret_cast<UInt8**>(g_thePlayer.GetPtr()) + 0xB01;
+	UInt8* points = *reinterpret_cast<UInt8**>(g_thePlayer.GetPtr()) + 0x11FD; //looks like address changed for VR
+
 	if (count > 0) //AddPerkPoints
 	{
 		//static float mantissa = 0.0f;  //This vlaue needs to be stored to cross save.
