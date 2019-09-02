@@ -3,6 +3,8 @@ Fork of Kassent's Skyrim Uncapper for SE edition to work in VR.
 
 Download dll from the DLL folder in the github project to use
 
+Also now available on Nexus: https://www.nexusmods.com/skyrimspecialedition/mods/28701
+
 Installation:
 
 1) You need a DLL loader. I use xSHADOWMANx's DLL Loader: https://www.nexusmods.com/skyrimspecialedition/mods/3619
