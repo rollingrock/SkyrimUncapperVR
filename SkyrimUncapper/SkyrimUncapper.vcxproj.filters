@@ -19,9 +19,6 @@
     <Filter Include="JIT">
       <UniqueIdentifier>{84613649-3cc1-4ce3-a099-ea611d9d6183}</UniqueIdentifier>
     </Filter>
-    <Filter Include="SKSE">
-      <UniqueIdentifier>{6db92acb-0d47-42fe-8ff8-87e1cd933bdd}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hook_Skill.h">
@@ -33,28 +30,10 @@
     <ClInclude Include="SimpleIni.h">
       <Filter>SimpleIni</Filter>
     </ClInclude>
-    <ClInclude Include="Utilities.h">
-      <Filter>SKSE</Filter>
-    </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ScanMemory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="xbyak.h">
       <Filter>JIT</Filter>
     </ClInclude>
     <ClInclude Include="GameSettings.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="NiTypes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PluginAPI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Hooks_Debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -68,19 +47,7 @@
     <ClCompile Include="Settings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Utilities.cpp">
-      <Filter>SKSE</Filter>
-    </ClCompile>
-    <ClCompile Include="ScanMemory.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GameSettings.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="NiTypes.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Hooks_Debug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

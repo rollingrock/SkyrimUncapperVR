@@ -1,8 +1,8 @@
 #include "GameSettings.h"
 
-
 // FE086A335E2EB844894F7D900623A149B381723F+6B
-RelocPtr<SettingCollectionMap*>  g_gameSettingCollection(0x02EDEE30);
+//REL::Offset<SettingCollectionMap*>  g_gameSettingCollection(0x02F8A780);
+
 
 UInt32 Setting::GetType(void) const
 {

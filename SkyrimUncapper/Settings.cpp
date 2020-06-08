@@ -27,7 +27,7 @@ Settings::Settings()
 
 void Settings::ReadConfig()
 {
-	std::string path = GetCurrentDLLDirectory() + "\\SkyrimUncapper.ini";
+	std::string path = ".\\Data\\SKSE\\plugins\\SkyrimUncapper.ini";
 	CSimpleIniA ini;
 	ini.LoadFile(path.c_str());
 

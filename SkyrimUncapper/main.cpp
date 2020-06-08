@@ -1,123 +1,121 @@
-#include <ShlObj.h>
+//#include <ShlObj.h>
 //#include "skse64_common/Relocation.h"
-#include "Relocation/RVA.h"
+//#include "Relocation/RVA.h"
+//#include "skse64_common/BranchTrampoline.h"
+//#include "Utilities.h"
+//#include "PluginAPI.h"
+
+
+#include "common/IDebugLog.h"
+#include "skse64_common/skse_version.h"
 #include "skse64_common/BranchTrampoline.h"
-#include "Hook_Skill.h"
+#include "skse64/PluginAPI.h"
+#include <ShlObj.h>
+
+#include "SKSE/API.h"
+#include "SKSE/Interfaces.h"
+#include "SKSE/Logger.h"
+
 #include "Settings.h"
-#include "Utilities.h"
-#include "PluginAPI.h"
+#include "Hook_Skill.h"
 
-#ifdef _DEBUG
-#include "ScanMemory.h"
-#endif
-
-#define GAME_EXE_NAME		"SkyrimVR.exe"
-
-IDebugLog gLog;
-void * g_moduleHandle = nullptr;
-
-
-UInt32	g_pluginHandle = kPluginHandle_Invalid;
-
-
-void SkyrimUncapper_Initialize(void)
-{
-	static bool isInit = false;
-	if (isInit) return;
-	isInit = true;
-
-	gLog.OpenRelative(CSIDL_MYDOCUMENTS, "\\My Games\\Skyrim VR\\SkyrimUncapper\\SkyrimUncapper.log");
-
-	_MESSAGE("imagebase = %016I64X ===============", GetModuleHandle(NULL));
-	_MESSAGE("reloc mgr imagebase = %016I64X ==============", RelocationManager::s_baseAddr);
-
-	std::string version;
-
-	if (GetFileVersion(GAME_EXE_NAME, version))
-	{
-
-	}
-	else
-	{
-		MessageBox(NULL, "Can't access SkyrimVR.exe's version info, SkyrimUncapper won't be initialized", "SkyrimUncapper", MB_OK);
-		return;
-	}
-
-	if (!g_branchTrampoline.Create(1024 * 64))
-	{
-		_ERROR("couldn't create branch trampoline. this is fatal. skipping remainder of init process.");
-		return;
-	}
-
-	if (!g_localTrampoline.Create(1024 * 64, g_moduleHandle))
-	{
-		_ERROR("couldn't create codegen buffer. this is fatal. skipping remainder of init process.");
-		return;
-	}
-	settings.ReadConfig();
-
-	Hook_Skill_Commit();
-
-	_MESSAGE("Init complete");
-}
+//void SkyrimUncapper_Initialize(void)
+//{
+//	static bool isInit = false;
+//	if (isInit) return;
+//	isInit = true;
+//
+//	gLog.OpenRelative(CSIDL_MYDOCUMENTS, "\\My Games\\Skyrim VR\\SkyrimUncapper\\SkyrimUncapper.log");
+//
+//
+//
+//	std::string version;
+//
+//	if (GetFileVersion(GAME_EXE_NAME, version))
+//	{
+//
+//	}
+//	else
+//	{
+//		MessageBox(NULL, "Can't access SkyrimVR.exe's version info, SkyrimUncapper won't be initialized", "SkyrimUncapper", MB_OK);
+//		return;
+//	}
+//
+//	if (!g_branchTrampoline.Create(1024 * 64))
+//	{
+//		_ERROR("couldn't create branch trampoline. this is fatal. skipping remainder of init process.");
+//		return;
+//	}
+//
+//	if (!g_localTrampoline.Create(1024 * 64, g_moduleHandle))
+//	{
+//		_ERROR("couldn't create codegen buffer. this is fatal. skipping remainder of init process.");
+//		return;
+//	}
+//	settings.ReadConfig();
+//
+//	Hook_Skill_Commit();
+//
+//	_MESSAGE("Init complete");
+//}
 
 
 extern "C" {
-
-	BOOL WINAPI DllMain(HANDLE hDllHandle, DWORD dwReason, LPVOID lpreserved)
+	bool SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
 	{
-		switch (dwReason)
-		{
-		case DLL_PROCESS_ATTACH:
-			g_moduleHandle = (void *)hDllHandle;
-			SkyrimUncapper_Initialize();
-			break;
+		SKSE::Logger::OpenRelative(FOLDERID_Documents, R"(\\My Games\\Skyrim VR\\SKSE\\SkyrimUncapper.log)");
+		SKSE::Logger::SetPrintLevel(SKSE::Logger::Level::kDebugMessage);
+		SKSE::Logger::SetFlushLevel(SKSE::Logger::Level::kDebugMessage);
+		SKSE::Logger::TrackTrampolineStats(true);
+		SKSE::Logger::UseLogStamp(true);
 
-		case DLL_PROCESS_DETACH:
-			break;
-		};
+		a_info->infoVersion = SKSE::PluginInfo::kVersion;
+		a_info->name = "EngineFixesVR";
+		a_info->version = 1;
 
-		return TRUE;
-	}
+		_MESSAGE("imagebase = %016I64X ===============", GetModuleHandle(NULL));
+		_MESSAGE("reloc mgr imagebase = %016I64X ==============", REL::Module::BaseAddr());
 
-	bool StartSkyrimUncapper(void)
-	{
-		g_moduleHandle = reinterpret_cast<void *>(GetModuleHandleA("SkyrimUncapper.dll"));
-		SkyrimUncapper_Initialize();
-		return true;
-	}
+		a_info->infoVersion = PluginInfo::kInfoVersion;
+		a_info->name = "SkyrimUncapper";
+		a_info->version = 1;
 
-	bool SKSEPlugin_Query(const SKSEInterface * skse, PluginInfo * info)
-	{
-
-		g_moduleHandle = reinterpret_cast<void *>(GetModuleHandleA("SkyrimUncapper.dll"));
-
-		SkyrimUncapper_Initialize();
-
-		info->infoVersion = PluginInfo::kInfoVersion;
-		info->name = "SkyrimUncapper";
-		info->version = 1;
-
-		g_pluginHandle = skse->GetPluginHandle();
-
-		if (skse->isEditor)
+		if (a_skse->IsEditor())
 		{
 			_ERROR("loaded in editor, marking as incompatible");
 
 			return false;
 		}
+
+		auto ver = a_skse->RuntimeVersion();
+		if (ver <= SKSE::RUNTIME_VR_1_4_15)
+		{
+			_FATALERROR("Unsupported runtime version %s!\n", ver.GetString().c_str());
+			return false;
+		}
 		return true;
 	}
 
-	bool SKSEPlugin_Load(const void * skse)
+	bool SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 	{
-		return true;
-	}
+		if (!SKSE::Init(a_skse))
+		{
+			_FATALERROR("Cannot INIT SKSE CommonLib!!!!");
+			return false;
+		}
 
-	void LoadINIConfig()
-	{
-#ifdef _DEBUG
+		if (!SKSE::AllocTrampoline(1 << 9))
+		{
+			_FATALERROR("Cannot Allocate Trampoline!!!!");
+			return false;
+		}
+
 		settings.ReadConfig();
-#endif
+		_MESSAGE("settings ini successfully read in");
+
+		Hook_Skill_Commit();
+
+		_MESSAGE("[MESSAGE] SkyrimUncapperVR loaded");
+		return true;
 	}
 };

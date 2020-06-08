@@ -1,68 +1,68 @@
 #include "Hook_Skill.h"
 #include "Settings.h"
-#include "GameSettings.h"
+//#include "GameSettings.h"
 //#include "skse64_common/Relocation.h"
-#include "skse64_common/BranchTrampoline.h"
-#include "skse64_common/SafeWrite.h"
-#include "Relocation/RVA.h"
+//#include "skse64_common/BranchTrampoline.h"
+//#include "skse64_common/SafeWrite.h"
+#include "RE/Skyrim.h"
+#include "SKSE/API.h"
+#include "SKSE/CodeGenerator.h"
+#include "SKSE/Trampoline.h"
 #include "xbyak/xbyak.h"
-#include <iostream>
 #include <fstream>
-#include "Relocation/Pattern.h"
-#include "Hooks_Debug.h"
 
-using LevelData = PlayerSkills::StatData::LevelData;
+auto g_thePlayer = RE::PlayerCharacter::GetSingleton();
+auto g_gameSettingCollection = RE::GameSettingCollection::GetSingleton();
 
-RelocPtr <void*>		g_thePlayer = 0x02F40458;
 
-RelocAddr <uintptr_t *> kHook_ModifyPerkPool_Ent = 0x008C584F;
-RelocAddr <uintptr_t *> kHook_ModifyPerkPool_Ret = 0x008C584F + 0x1C; //1C
+REL::Offset<std::uintptr_t*> kHook_ModifyPerkPool_Ent(0x008F386F);
+REL::Offset<std::uintptr_t*> kHook_ModifyPerkPool_Ret(kHook_ModifyPerkPool_Ent.GetOffset() + 0x1C); //1C
 
-RelocAddr <uintptr_t *> kHook_SkillCapPatch_Ent = 0x006E4B78;
-RelocAddr <uintptr_t *> kHook_SkillCapPatch_Ret = 0x006E4B78 + 0x9;
+REL::Offset<std::uintptr_t*> kHook_SkillCapPatch_Ent(0x0070D108);
+REL::Offset<std::uintptr_t*> kHook_SkillCapPatch_Ret(kHook_SkillCapPatch_Ent.GetOffset() + 0x9);
 
-RelocAddr <uintptr_t *> kHook_ExecuteLegendarySkill_Ent = 0x08C95FD;//get it when legendary skill by trace setbaseav.
-RelocAddr <uintptr_t *> kHook_ExecuteLegendarySkill_Ret = 0x08C95FD + 0x6;
+REL::Offset<std::uintptr_t*> kHook_ExecuteLegendarySkill_Ent(0x008F847D);//get it when legendary skill by trace setbaseav.
+REL::Offset<std::uintptr_t*> kHook_ExecuteLegendarySkill_Ret(kHook_ExecuteLegendarySkill_Ent.GetOffset() + 0x6);
 
-RelocAddr <uintptr_t *> kHook_CheckConditionForLegendarySkill_Ent = 0x08BF655;
-RelocAddr <uintptr_t *> kHook_CheckConditionForLegendarySkill_Ret = 0x08BF655 + 0x13;
+REL::Offset<std::uintptr_t*> kHook_CheckConditionForLegendarySkill_Ent(0x008EE403);
+REL::Offset<std::uintptr_t*> kHook_CheckConditionForLegendarySkill_Ret(kHook_CheckConditionForLegendarySkill_Ent.GetOffset() + 0x13);
 
-RelocAddr <uintptr_t *> kHook_HideLegendaryButton_Ent = 0x08C1456;
-RelocAddr <uintptr_t *> kHook_HideLegendaryButton_Ret = 0x08C1456 + 0x1D;
+REL::Offset<std::uintptr_t*> kHook_HideLegendaryButton_Ent(0x008EFC19);
+REL::Offset<std::uintptr_t*> kHook_HideLegendaryButton_Ret(kHook_HideLegendaryButton_Ent.GetOffset() + 0x1D);
 
 typedef void(*_ImproveSkillByTraining)(void* pPlayer, UInt32 skillID, UInt32 count);
-RelocAddr <_ImproveSkillByTraining> ImproveSkillByTraining_Original = 0x06A0EE0;
+REL::Offset<_ImproveSkillByTraining> ImproveSkillByTraining_Original(0x006C30F0);
 
 typedef void(*_ImprovePlayerSkillPoints)(void*, UInt32, float, UInt64, UInt32, UInt8, bool);
-RelocAddr <_ImprovePlayerSkillPoints> ImprovePlayerSkillPoints = 0x06E4B30;
+REL::Offset<_ImprovePlayerSkillPoints> ImprovePlayerSkillPoints(0x0070D0C0);
 _ImprovePlayerSkillPoints ImprovePlayerSkillPoints_Original = nullptr;
 
 typedef UInt64(*_ImproveAttributeWhenLevelUp)(void*, UInt8);
-RelocAddr <_ImproveAttributeWhenLevelUp> ImproveAttributeWhenLevelUp = 0x08925D0;
+REL::Offset<_ImproveAttributeWhenLevelUp> ImproveAttributeWhenLevelUp(0x008C19F0);
 _ImproveAttributeWhenLevelUp ImproveAttributeWhenLevelUp_Original = nullptr;
 
 typedef bool(*_GetSkillCoefficients)(UInt32, float*, float*, float*, float*);
-RelocAddr <_GetSkillCoefficients> GetSkillCoefficients = 0x03E37F0;
+REL::Offset<_GetSkillCoefficients> GetSkillCoefficients(0x003F2FF0);
 
 typedef UInt16(*_GetLevel)(void* pPlayer);
-RelocAddr <_GetLevel> GetLevel = 0x05D4C40;
+REL::Offset<_GetLevel> GetLevel(0x005DE910);
 
 typedef float(*_ImproveLevelExpBySkillLevel)(float skillLevel);
-RelocAddr <_ImproveLevelExpBySkillLevel> ImproveLevelExpBySkillLevel_Original = 0x06E5D90;
+REL::Offset<_ImproveLevelExpBySkillLevel> ImproveLevelExpBySkillLevel_Original(0x0070E320);
 
 typedef float(*_GetCurrentActorValue)(void*, UInt32);
-RelocAddr <_GetCurrentActorValue> GetCurrentActorValue = 0x061F6C0;
+REL::Offset<_GetCurrentActorValue> GetCurrentActorValue(0x00629B10);
 _GetCurrentActorValue GetCurrentActorValue_Original = nullptr;
 
 typedef float(*_GetBaseActorValue)(void*, UInt32);
-RelocAddr <_GetBaseActorValue> GetBaseActorValue = 0x061F890;	//GetBaseActorValue
+REL::Offset<_GetBaseActorValue> GetBaseActorValue(0x00629CE0);	//GetBaseActorValue
 
 typedef float(*_CalculateChargePointsPerUse)(float basePoints, float enchantingLevel);
-RelocAddr <_CalculateChargePointsPerUse> CalculateChargePointsPerUse_Original = 0x03C0F10;
+REL::Offset<_CalculateChargePointsPerUse> CalculateChargePointsPerUse_Original(0x003D06C0);
 
 class ActorValueOwner;
 typedef float(*_GetEffectiveSkillLevel)(ActorValueOwner *, UInt32 skillID);
-RelocAddr <_GetEffectiveSkillLevel> GetEffectiveSkillLevel = 0x03E5400;	//V1.5.3
+REL::Offset<_GetEffectiveSkillLevel> GetEffectiveSkillLevel(0x003F4DA0);	//V1.5.3
 
 //typedef float(*_Pow)(float, float);
 //RelocAddr <_Pow> Pow = 0x01312C52;
@@ -76,10 +76,10 @@ float CalculateSkillExpForLevel(UInt32 skillID, float skillLevel)
 #endif
 	float result = 0.0f;
 	float fSkillUseCurve = 1.95f;//0x01D88258;
-	if ((*g_gameSettingCollection) != nullptr)
+	if ((g_gameSettingCollection) != nullptr)
 	{
-		auto pSetting = (*g_gameSettingCollection)->Get("fSkillUseCurve");
-		fSkillUseCurve = (pSetting != nullptr) ? pSetting->data.f32 : 1.95f;
+		auto pSetting = g_gameSettingCollection->GetSetting("fSkillUseCurve");
+		fSkillUseCurve = pSetting != nullptr ? pSetting->GetFloat() : 1.95f;
 	}
 	if(skillLevel < settings.settingsSkillCaps[skillID - 6])
 	{
@@ -101,16 +101,16 @@ float CalculateChargePointsPerUse_Hook(float basePoints, float enchantingLevel)
 	//RelocPtr<float> unk0 = 0x014E8F78;			 //1.00f
 	float fEnchantingSkillCostMult = 3.00f;// 0x01D8A028;			 //3.00
 
-	if ((*g_gameSettingCollection) != nullptr)
+	if ((g_gameSettingCollection) != nullptr)
 	{
-		Setting * pSetting = (*g_gameSettingCollection)->Get("fEnchantingCostExponent");
-		fEnchantingCostExponent = (pSetting != nullptr) ? pSetting->data.f32 : 1.10f;
-		pSetting = (*g_gameSettingCollection)->Get("fEnchantingSkillCostBase");
-		fEnchantingSkillCostBase = (pSetting != nullptr) ? pSetting->data.f32 : 0.005f;
-		pSetting = (*g_gameSettingCollection)->Get("fEnchantingSkillCostScale");
-		fEnchantingSkillCostScale = (pSetting != nullptr) ? pSetting->data.f32 : 0.5f;
-		pSetting = (*g_gameSettingCollection)->Get("fEnchantingSkillCostMult");
-		fEnchantingSkillCostMult = (pSetting != nullptr) ? pSetting->data.f32 : 3.00f;
+		auto pSetting = g_gameSettingCollection->GetSetting("fEnchantingCostExponent");
+		fEnchantingCostExponent = (pSetting != nullptr) ? pSetting->GetFloat() : 1.10f;
+		pSetting = g_gameSettingCollection->GetSetting("fEnchantingSkillCostBase");
+		fEnchantingSkillCostBase = (pSetting != nullptr) ? pSetting->GetFloat() : 0.005f;
+		pSetting = g_gameSettingCollection->GetSetting("fEnchantingSkillCostScale");
+		fEnchantingSkillCostScale = (pSetting != nullptr) ? pSetting->GetFloat() : 0.5f;
+		pSetting = g_gameSettingCollection->GetSetting("fEnchantingSkillCostMult");
+		fEnchantingSkillCostMult = (pSetting != nullptr) ? pSetting->GetFloat() : 3.00f;
 	}
 
 	enchantingLevel = (enchantingLevel > 199.0f) ? 199.0f : enchantingLevel;
@@ -124,25 +124,26 @@ float CalculateChargePointsPerUse_Hook(float basePoints, float enchantingLevel)
 
 void ImproveSkillByTraining_Hook(void* pPlayer, UInt32 skillID, UInt32 count)
 {
-	PlayerSkills* skillData = *reinterpret_cast<PlayerSkills**>(reinterpret_cast<uintptr_t>(pPlayer)+0x10B0);
+	//PlayerSkills* skillData = *reinterpret_cast<PlayerSkills**>(reinterpret_cast<uintptr_t>(pPlayer)+0x10B0);
 
 	if (count < 1)
 		count = 1;
 	if ((skillID >= 6) && (skillID <= 23))
 	{
-		LevelData* levelData = &(skillData->data->levelData[skillID - 6]);
-		_MESSAGE("player:%p, skill:%d, points:%.2f, maxPoints:%.2f, level:%.2f", pPlayer, skillID, levelData->points, levelData->pointsMax, levelData->level);
+		//LevelData* levelData = &(skillData->data->levelData[skillID - 6]);
+
+		RE::PlayerCharacter::PlayerSkills::Data::SkillData* levelData = &(g_thePlayer->skills->data->skills[skillID - 6]);
+
+		_MESSAGE("player:%p, skill:%d, points:%.2f, maxPoints:%.2f, level:%.2f", pPlayer, skillID, levelData->xp, levelData->levelThreshold, levelData->level);
 		for (int j = 0; j < 10; ++j) {
-			_MESSAGE("player:%p, skill:%d, points:%.2f, level:%.2f", pPlayer, skillID, skillData->data->levelData[j].points, skillData->data->levelData[j].level);
+			_MESSAGE("player:%p, skill:%d, points:%.2f, level:%.2f", pPlayer, skillID, g_thePlayer->skills->data->skills[j].xp, g_thePlayer->skills->data->skills[j].level);
 		}
 		
 		float skillProgression = 0.0f;
-		if (levelData->pointsMax > 0.0f)
+		if (levelData->levelThreshold > 0.0f)
 		{
-			skillProgression = levelData->points / levelData->pointsMax;
-#ifdef _DEBUG
-			_MESSAGE("player:%p, skill:%d, points:%.2f, maxPoints:%.2f, level:%.2f", pPlayer, skillID, levelData->points, levelData->pointsMax, levelData->level);
-#endif
+			skillProgression = levelData->xp / levelData->levelThreshold;
+
 			if (skillProgression >= 1.0f)
 				skillProgression = 0.99f; 
 		}
@@ -150,37 +151,37 @@ void ImproveSkillByTraining_Hook(void* pPlayer, UInt32 skillID, UInt32 count)
 			skillProgression = 0.0f;
 		for (UInt32 i = 0; i < count; ++i)
 		{
-			float skillLevel = GetBaseActorValue((char*)(*g_thePlayer) + 0xB0, skillID);
-			float expRequired = CalculateSkillExpForLevel(skillID, skillLevel);
-#ifdef _DEBUG
-			_MESSAGE("maxPoints:%.2f, expRequired:%.2f", levelData->pointsMax, expRequired);
-#endif
-			if (levelData->pointsMax != expRequired)
-				levelData->pointsMax = expRequired;
-			if (levelData->points <= 0.0f)
-				levelData->points = (levelData->pointsMax > 0.0f) ? 0.1f : 0.0f;
-			if (levelData->points >= levelData->pointsMax)
-				levelData->points = (levelData->pointsMax > 0.0f) ? (levelData->pointsMax - 0.1f) : 0.0f;
+			//float skillLevel = GetBaseActorValue((char*)(*g_thePlayer) + 0xB0, skillID);
+			float expRequired = CalculateSkillExpForLevel(skillID, g_thePlayer->GetBaseActorValue((RE::ActorValue)skillID));
 
-			float expNeeded = levelData->pointsMax - levelData->points;
+			_MESSAGE("maxPoints:%.2f, expRequired:%.2f", levelData->levelThreshold, expRequired);
+
+			if (levelData->levelThreshold != expRequired)
+				levelData->levelThreshold = expRequired;
+			if (levelData->xp <= 0.0f)
+				levelData->xp = (levelData->levelThreshold > 0.0f) ? 0.1f : 0.0f;
+			if (levelData->xp >= levelData->levelThreshold)
+				levelData->xp = (levelData->levelThreshold > 0.0f) ? (levelData->levelThreshold - 0.1f) : 0.0f;
+
+			float expNeeded = levelData->levelThreshold - levelData->xp;
 			
-			ImprovePlayerSkillPoints_Original(skillData, skillID, expNeeded, 0, 0, 0, (i < count - 1));
+			ImprovePlayerSkillPoints_Original(g_thePlayer->skills, skillID, expNeeded, 0, 0, 0, (i < count - 1));
 			
 		}
-		levelData->points += levelData->pointsMax * skillProgression;
+		levelData->xp += levelData->levelThreshold * skillProgression;
 	}		
 }
 
-void ImprovePlayerSkillPoints_Hook(PlayerSkills* skillData, UInt32 skillID, float exp, UInt64 unk1, UInt32 unk2, UInt8 unk3, bool unk4)
+void ImprovePlayerSkillPoints_Hook(RE::PlayerCharacter::PlayerSkills* skillData, UInt32 skillID, float exp, UInt64 unk1, UInt32 unk2, UInt8 unk3, bool unk4)
 {
 	if ((skillID >= 6) && (skillID <= 23))
 	{
 #ifdef _DEBUG
 		_MESSAGE("function: %s, skillID: %d, SkillExpGainMults: %.2f", __FUNCTION__, skillID, settings.settingsSkillExpGainMults[skillID - 6]);
 #endif
-		UInt32 baseSkillLevel = static_cast<UInt32>(GetBaseActorValue((char*)(*g_thePlayer) + 0xB0, skillID));
+		UInt32 baseSkillLevel = static_cast<UInt32>(g_thePlayer->GetBaseActorValue((RE::ActorValue)skillID));
 		float skillMult = settings.settingsSkillExpGainMultsWithSkills[skillID - 6].GetValue(baseSkillLevel);
-		UInt16 level = GetLevel(*g_thePlayer);
+		UInt16 level = g_thePlayer->GetLevel();
 		float levelMult = settings.settingsSkillExpGainMultsWithPCLevel[skillID - 6].GetValue(level);
 		exp *= settings.settingsSkillExpGainMults[skillID - 6] * skillMult * levelMult;
 	}
@@ -201,9 +202,9 @@ float ImproveLevelExpBySkillLevel_Hook(float skillLevel, UInt32 skillID)
 	if ((skillID >= 6) && (skillID <= 23))
 	{
 		baseMult = settings.settingsLevelSkillExpMults[skillID - 6];
-		UInt32 baseSkillLevel = static_cast<UInt32>(GetBaseActorValue((char*)(*g_thePlayer) + 0xB0, skillID));
+		UInt32 baseSkillLevel = static_cast<UInt32>(g_thePlayer->GetBaseActorValue((RE::ActorValue)skillID));
 		skillMult = settings.settingsLevelSkillExpMultsWithSkills[skillID - 6].GetValue(baseSkillLevel);
-		UInt16 level = GetLevel(*g_thePlayer);
+		UInt16 level = g_thePlayer->GetLevel();
 		levelMult = settings.settingsLevelSkillExpMultsWithPCLevel[skillID - 6].GetValue(level);
 		//PCLevel has some minor glitch.I need to calculate player's actual level.
 	}
@@ -225,39 +226,39 @@ UInt64 ImproveAttributeWhenLevelUp_Hook(void* unk0, UInt8 unk1)
 	//static RelocPtr<UInt32> iAVDhmsLevelUp = 0x01D7C200;
 	//static RelocPtr<float> fLevelUpCarryWeightMod = 0x01D882B8;
 
-	if ((*g_gameSettingCollection) != nullptr)
+	if (g_gameSettingCollection != nullptr)
 	{
-		Setting * iAVDhmsLevelUp = (*g_gameSettingCollection)->Get("iAVDhmsLevelUp");
-		Setting * fLevelUpCarryWeightMod = (*g_gameSettingCollection)->Get("fLevelUpCarryWeightMod");
+		auto iAVDhmsLevelUp = g_gameSettingCollection->GetSetting("iAVDhmsLevelUp");
+		auto fLevelUpCarryWeightMod = g_gameSettingCollection->GetSetting("fLevelUpCarryWeightMod");
 		if (iAVDhmsLevelUp && fLevelUpCarryWeightMod)
 		{
 			UInt32 choice = *reinterpret_cast<UInt32*>(static_cast<char*>(unk0) + 0x18);
-			UInt16 level = GetLevel(*g_thePlayer);
+			UInt16 level = g_thePlayer->GetLevel();
 
 			switch (choice)
 			{
 			case kHealth:
 			{
-				iAVDhmsLevelUp->data.u32 = settings.settingsHealthAtLevelUp.GetValue(level);
-				fLevelUpCarryWeightMod->data.f32 = settings.settingsCarryWeightAtHealthLevelUp.GetValue(level);
+				iAVDhmsLevelUp->data.u = settings.settingsHealthAtLevelUp.GetValue(level);
+				fLevelUpCarryWeightMod->data.f = settings.settingsCarryWeightAtHealthLevelUp.GetValue(level);
 				break;
 			}
 			case kMagicka:
 			{
-				iAVDhmsLevelUp->data.u32 = settings.settingsMagickaAtLevelUp.GetValue(level);
-				fLevelUpCarryWeightMod->data.f32 = settings.settingsCarryWeightAtMagickaLevelUp.GetValue(level);
+				iAVDhmsLevelUp->data.u = settings.settingsMagickaAtLevelUp.GetValue(level);
+				fLevelUpCarryWeightMod->data.f = settings.settingsCarryWeightAtMagickaLevelUp.GetValue(level);
 				break;
 			}
 			case kStamina:
 			{
-				iAVDhmsLevelUp->data.u32 = settings.settingsStaminaAtLevelUp.GetValue(level);
-				fLevelUpCarryWeightMod->data.f32 = settings.settingsCarryWeightAtStaminaLevelUp.GetValue(level);
+				iAVDhmsLevelUp->data.u = settings.settingsStaminaAtLevelUp.GetValue(level);
+				fLevelUpCarryWeightMod->data.f = settings.settingsCarryWeightAtStaminaLevelUp.GetValue(level);
 				break;
 			}
 			default:
 			{
-				iAVDhmsLevelUp->data.u32 = 5;
-				fLevelUpCarryWeightMod->data.f32 = 10.0f;
+				iAVDhmsLevelUp->data.u = 5;
+				fLevelUpCarryWeightMod->data.f = 10.0f;
 			}
 		}
 		}
@@ -272,26 +273,25 @@ UInt64 ImproveAttributeWhenLevelUp_Hook(void* unk0, UInt8 unk1)
 
 void ModifyPerkPool_Hook(SInt8 count)
 {
-//	UInt8* points = *reinterpret_cast<UInt8**>(g_thePlayer.GetPtr()) + 0xB01;
-	UInt8* points = *reinterpret_cast<UInt8**>(g_thePlayer.GetPtr()) + 0x11FD; //looks like address changed for VR
+	//UInt8* points = *reinterpret_cast<UInt8**>(g_thePlayer.GetPtr()) + 0x11FD; //looks like address changed for VR
 
 	if (count > 0) //AddPerkPoints
 	{
 		//static float mantissa = 0.0f;  //This vlaue needs to be stored to cross save.
-		UInt16 level = GetLevel(*g_thePlayer);
+		UInt16 level = g_thePlayer->GetLevel();
 		float increment = settings.settingsPerksAtLevelUp.GetValue(level) + settings.settingsPerksAtLevelUp.GetDecimal(level);
 		count = static_cast<SInt8>(increment);
 		//mantissa = increment - count;
 #ifdef _DEBUG
 		_MESSAGE("function: %s, count: %d, perkPoints: %d, level: %d", __FUNCTION__, count, *points, level);
 #endif
-		UInt32 sum = count + *points;
-		*points = (sum > 0xFF) ? 0xFF : static_cast<UInt8>(sum);
+		UInt32 sum = count + g_thePlayer->perkCount;
+		g_thePlayer->perkCount = (sum > 0xFF) ? 0xFF : static_cast<SInt8>(sum);
 	}
 	else //RemovePerkPoints
 	{
-		SInt32 sum = *points + count;
-		*points = (sum < 0) ? 0 : static_cast<UInt8>(sum);
+		SInt32 sum = g_thePlayer->perkCount + count;
+		g_thePlayer->perkCount = (sum < 0) ? 0 : static_cast<SInt8>(sum);
 	}
 }
 
@@ -330,239 +330,155 @@ float GetCurrentActorValue_Hook(void* avo, UInt32 skillID)   //PC&NPC  //61F6C0
 
 void LegendaryResetSkillLevel_Hook(float baseLevel, UInt32 skillID) 
 {
-	if ((*g_gameSettingCollection) != nullptr)
+	if (g_gameSettingCollection != nullptr)
 	{
-		Setting * fLegendarySkillResetValue = (*g_gameSettingCollection)->Get("fLegendarySkillResetValue");
+		auto fLegendarySkillResetValue = g_gameSettingCollection->GetSetting("fLegendarySkillResetValue");
 		if (fLegendarySkillResetValue != nullptr)
 		{
-			static float originalSetting = fLegendarySkillResetValue->data.f32;
+			static float originalSetting = fLegendarySkillResetValue->GetFloat();
 			if ((skillID >= 6) && (skillID <= 23))
 			{
 				if (settings.settingsLegendarySkill.bLegendaryKeepSkillLevel)
-					fLegendarySkillResetValue->data.f32 = baseLevel;
+					fLegendarySkillResetValue->data.f = baseLevel;
 				else
 				{
 					UInt32 legendaryLevel = settings.settingsLegendarySkill.iSkillLevelAfterLegendary;
 					if ((legendaryLevel && legendaryLevel > baseLevel) || (!legendaryLevel && originalSetting > baseLevel))
-						fLegendarySkillResetValue->data.f32 = baseLevel;
+						fLegendarySkillResetValue->data.f = baseLevel;
 					else
-						fLegendarySkillResetValue->data.f32 = (!legendaryLevel) ? originalSetting : legendaryLevel;
+						fLegendarySkillResetValue->data.f = (!legendaryLevel) ? originalSetting : legendaryLevel;
 				}
 			}
 			else
-				fLegendarySkillResetValue->data.f32 = originalSetting;
+				fLegendarySkillResetValue->data.f = originalSetting;
 		}
 	}
 }
 
 bool CheckConditionForLegendarySkill_Hook(void* pActorValueOwner, UInt32 skillID)
 {
-	float skillLevel = GetBaseActorValue(*(char**)(g_thePlayer.GetPtr()) + 0xB0, skillID);
+	//float skillLevel = GetBaseActorValue(*(char**)(g_thePlayer.GetPtr()) + 0xB0, skillID);
+	float skillLevel = g_thePlayer->GetBaseActorValue((RE::ActorValue)skillID);
 	return (skillLevel >= settings.settingsLegendarySkill.iSkillLevelEnableLegendary) ? true : false;
 }
 
 bool HideLegendaryButton_Hook(UInt32 skillID)
 {
-	float skillLevel = GetBaseActorValue(*(char**)(g_thePlayer.GetPtr()) + 0xB0, skillID);
+	//float skillLevel = GetBaseActorValue(*(char**)(g_thePlayer.GetPtr()) + 0xB0, skillID);
+	float skillLevel = g_thePlayer->GetBaseActorValue((RE::ActorValue)skillID);
 	if (skillLevel >= settings.settingsLegendarySkill.iSkillLevelEnableLegendary && !settings.settingsLegendarySkill.bHideLegendaryButton)
 		return true;
 	return false;
 }
 
-
-void Hook_Skill_Init()
-{
-
-}
-
-void InitRVA()
-{
-	g_thePlayer								= RVAScan<void**>(GET_RVA(g_thePlayer), "F6 C1 04 74 65 4C 8B B7 18 01 00 00 4D 85 F6 74 59 49 8B D6 48 8B 0D ? ? ? ? E8 ? ? ? ? 0F B6 F0 49 8D 4E 30 84 C0 74 16", 0x14, 3, 7);
-	_MESSAGE("g_thePlayer: %016I64X", g_thePlayer.GetUIntPtr());
-
-	g_gameSettingCollection					= RVAScan<SettingCollectionMap**>(GET_RVA(g_gameSettingCollection), "74 1A 8B 15 ? ? ? ? 48 8B C8 E8 ? ? ? ? 48 8D 05 ? ? ? ? 48 89 03 EB 02 33 DB 48 89 1D ? ? ? ? 48 83 C4 30", 0x1E, 3, 7);
-	_MESSAGE("g_gameSettingCollection: %016I64X", g_gameSettingCollection.GetUIntPtr());
-
-	kHook_ModifyPerkPool_Ent				= RVAScan<uintptr_t *>(GET_RVA(kHook_ModifyPerkPool_Ent), "48 85 c0 74 33 66 0f 6e c3 0f 5b c0 f3 0f 58 40 34 f3 0f 11 40 34 48 83 c4 20 5b c3 48 8b 15 ? ? ? ? 0f b6 8a fd 11 00 00 8b c1 03 c3 78 08 02 cb 88 8a fd 11 00 00", 0x1C);
-	kHook_ModifyPerkPool_Ret				= kHook_ModifyPerkPool_Ent;
-	kHook_ModifyPerkPool_Ret				+= 0x1C;
-	_MESSAGE("kHook_ModifyPerkPool_Ent: %016I64X", kHook_ModifyPerkPool_Ent.GetUIntPtr());
-
-
-	kHook_SkillCapPatch_Ent					= RVAScan<uintptr_t *>(GET_RVA(kHook_SkillCapPatch_Ent), "48 81 C1 B0 00 00 00 41 0F 29 73 D8 45 0F 29 43 B8 48 8B 01 FF 50 18 F3 44 0F 10 ? ? ? ? 00 0F 28 F0 41 0F 2F F0 0F 83 74 02 00 00 48 8D 44 24 3C", 0x17);
-	kHook_SkillCapPatch_Ret					= kHook_SkillCapPatch_Ent;
-	kHook_SkillCapPatch_Ret					+= 9;
-	_MESSAGE("kHook_SkillCapPatch_Ent: %016I64X", kHook_SkillCapPatch_Ent.GetUIntPtr());
-
-	kHook_ExecuteLegendarySkill_Ent			= RVAScan<uintptr_t *>(GET_RVA(kHook_ExecuteLegendarySkill_Ent), "0F 82 85 00 00 00 48 8B 0D ? ? ? ? 48 81 C1 B0 00 00 00 48 8B 01 F3 0F 10 15 ? ? ? ? 8B 56 1C FF 50 20 48 8B 05 ? ? ? ? 8B 56 1C 48 8B 88 B0 10 00 00");
-	kHook_ExecuteLegendarySkill_Ret			= kHook_ExecuteLegendarySkill_Ent;
-	kHook_ExecuteLegendarySkill_Ret			+= 6;
-	_MESSAGE("kHook_ExecuteLegendarySkill_Ent: %016I64X", kHook_ExecuteLegendarySkill_Ent.GetUIntPtr());
-
-//  kHook_CheckConditionForLegendarySkill_Ent = RVAScan<uintptr_t *>(GET_RVA(kHook_CheckConditionForLegendarySkill_Ent), "8B D0 48 8D 8F B0 00 00 00 FF 53 18 0F 2F 05 ? ? ? ? 0F 82 10 0A 00 00 45 33 FF 4C 89 7D 80 44 89 7D 88 45 33 C0 48 8B 15 ? ? ? ? 48 8D 4D 80");
-	kHook_CheckConditionForLegendarySkill_Ent = RVAScan<uintptr_t *>(GET_RVA(kHook_CheckConditionForLegendarySkill_Ent), "00 00 ff 53 18 0f 2f 05 09 9e ca 00 0f 82 db ? ? ? ? 86 80 03 00 00 00 45 33 ff 4c 89 7d c8 44 89 7d d0 45 33 c0 48 8b 15 ? ? ? ? 48 8d 4d c8");
-	kHook_CheckConditionForLegendarySkill_Ret = kHook_CheckConditionForLegendarySkill_Ent;
-	kHook_CheckConditionForLegendarySkill_Ret += 0x13;
-	_MESSAGE("kHook_CheckConditionForLegendarySkill_Ent: %016I64X", kHook_CheckConditionForLegendarySkill_Ent.GetUIntPtr());
-
-	kHook_HideLegendaryButton_Ent			= RVAScan<uintptr_t *>(GET_RVA(kHook_HideLegendaryButton_Ent), "48 8B 0D ? ? ? ? 48 81 C1 B0 00 00 00 48 8B 01 8B D6 FF 50 18 0F 2F 05 ? ? ? ? 72 64 48 8D 05 ? ? ? ? 48 89 85 C0 00 00 00 4C 89 64 24 20");
-	kHook_HideLegendaryButton_Ret			= kHook_HideLegendaryButton_Ent;
-	kHook_HideLegendaryButton_Ret			+= 0x1D;
-	_MESSAGE("kHook_HideLegendaryButton_Ent: %016I64X", kHook_HideLegendaryButton_Ent.GetUIntPtr());
-
-	ImproveSkillByTraining_Original			= RVAScan<_ImproveSkillByTraining>(GET_RVA(ImproveSkillByTraining_Original), "48 8B 89 B0 10 00 00 B8 01 00 00 00 44 3B C0 44 0F 42 C0 E9 ? ? ? ?");
-	_MESSAGE("ImproveSkillByTraining_Original: %016I64X", ImproveSkillByTraining_Original.GetUIntPtr());
-
-	ImprovePlayerSkillPoints				= RVAScan<_ImprovePlayerSkillPoints>(GET_RVA(ImprovePlayerSkillPoints), "4C 8B DC 55 56 41 56 48 81 EC 60 01 00 00 8D 42 FA 41 0F 29 7B C8 49 8B E9 0F 28 FA 8B F2 4C 8B F1 83 F8 11 0F 87 B9 02 00 00");
-	_MESSAGE("ImprovePlayerSkillPoints: %016I64X", ImprovePlayerSkillPoints.GetUIntPtr());
-
-	ImproveAttributeWhenLevelUp				= RVAScan<_ImproveAttributeWhenLevelUp>(GET_RVA(ImproveAttributeWhenLevelUp), "0F B6 DA 48 8B F9 48 8B 15 ? ? ? ? 48 81 C2 28 01 00 00 48 8B 0D ? ? ? ? E8 ? ? ? ? 84 C0 0F 84 BA 00 00 00 84 DB 0F 85 AA 00 00 00", -0x1E);
-	_MESSAGE("ImproveAttributeWhenLevelUp: %016I64X", ImproveAttributeWhenLevelUp.GetUIntPtr());
-
-	GetSkillCoefficients					= RVAScan<_GetSkillCoefficients>(GET_RVA(GetSkillCoefficients), "81 F9 A3 00 00 00 77 52 48 8B 05 ? ? ? ? 48 63 C9 4C 8B 54 C8 08 4D 85 D2 74 3E 49 8B 82 08 01 00 00 48 85 C0 74 32");
-	_MESSAGE("GetSkillCoefficients: %016I64X", GetSkillCoefficients.GetUIntPtr());
-
-	GetLevel								= RVAScan<_GetLevel>(GET_RVA(GetLevel), "84 C0 74 24 48 8B CB E8 ? ? ? ? 0F B7 C8 48 8B D7 E8 ? ? ? ? 84 C0 74 0D B0 01 48 8B 5C 24 30 48 83 C4 20 5F C3", 7, 1, 5);
-	_MESSAGE("GetLevel: %016I64X", GetLevel.GetUIntPtr());
-
-	ImproveLevelExpBySkillLevel_Original	= RVAScan<_ImproveLevelExpBySkillLevel>(GET_RVA(ImproveLevelExpBySkillLevel_Original), "F3 0F 58 D3 0F 28 E0 0F 29 34 24 0F 57 F6 0F 28 CA F3 0F 58 CB F3 0F 59 CA F3 0F 59 CD F3 0F 2C C1 66 0F 6E C0 0F 5B C0 F3 0F 5C C8 0F 2F CE 73 04 F3 0F 5C C3", -0x17);
-	_MESSAGE("ImproveLevelExpBySkillLevel_Original: %016I64X", ImproveLevelExpBySkillLevel_Original.GetUIntPtr());
-
-	GetCurrentActorValue					= RVAScan<_GetCurrentActorValue>(GET_RVA(GetCurrentActorValue), "4C 8B 44 F8 08 41 8B 40 60 C1 E8 12 A8 01 74 38 48 8B 49 40 48 85 C9 74 2F 48 83 79 50 00 74 28 40 B5 01 0F 57 C0 F3 0F 11 44 24 78 4C 8D 44 24 78 8B D7", -0x2C);
-	_MESSAGE("GetCurrentActorValue: %016I64X", GetCurrentActorValue.GetUIntPtr());
-
-	GetBaseActorValue						= RVAScan<_GetBaseActorValue>(GET_RVA(GetBaseActorValue), "48 89 5C 24 18 48 89 74 24 20 57 48 83 EC 30 48 63 DA 4C 8D 44 24 40 48 8B F9 0F 57 C0 8B D3 F3 0F 11 44 24 40 48 81 C1 50 01 00 00 E8 ? ? ? ? 84 C0 0F 85 DE 00 00 00");
-	_MESSAGE("GetBaseActorValue: %016I64X", GetBaseActorValue.GetUIntPtr());
-
-	CalculateChargePointsPerUse_Original	= RVAScan<_CalculateChargePointsPerUse>(GET_RVA(CalculateChargePointsPerUse_Original), "48 83 EC 48 0F 29 74 24 30 0F 29 7C 24 20 0F 28 F8 F3 0F 10 05 ? ? ? ? F3 0F 59 C1 F3 0F 10 0D ? ? ? ? E8 ? ? ? ? F3 0F 10 35 ? ? ? ? F3 0F 10 0D ? ? ? ?");
-	_MESSAGE("CalculateChargePointsPerUse_Original: %016I64X", CalculateChargePointsPerUse_Original.GetUIntPtr());
-
-	GetEffectiveSkillLevel					= RVAScan<_GetEffectiveSkillLevel>(GET_RVA(GetEffectiveSkillLevel), "40 53 48 83 EC 20 48 8B 01 48 63 DA 8B D3 FF 50 08 48 8B 05 ? ? ? ? 48 8B 4C D8 08 8B 51 60 8B C2 C1 E8 04 A8 01 74 1E F3 0F 10 0D ? ? ? ? 0F 2F C1 73 44 0F 57 D2 0F 2F C2 73 3F");
-	_MESSAGE("GetEffectiveSkillLevel: %016I64X", GetEffectiveSkillLevel.GetUIntPtr());
-}
-
 void Hook_Skill_Commit()
 {
-
-	Hooks_Debug_Init();
-
-	InitRVA();
-	//return;
 	
-	SafeWrite16(GetEffectiveSkillLevel.GetUIntPtr() + 0x34, 0x9090);
-
-	_MESSAGE("ImproveLevelExpBySkillLevel_Original: %016I64X", ImproveLevelExpBySkillLevel_Original.GetUIntPtr());
-
-	g_branchTrampoline.Write6Branch(ImproveSkillByTraining_Original.GetUIntPtr(), (uintptr_t)ImproveSkillByTraining_Hook);
-/*
-	static Utility::executable_meta executable;
-
-	executable.EnsureInit();
-
-	std::ofstream fstream;
-	fstream.open("uncap2.exe", std::ios::binary | std::ios::out);
-
-	for (uintptr_t i = executable.begin(); i <= executable.end(); i++) {
-		char * ptr = reinterpret_cast<char*>(i);
-
-		fstream << *ptr;
-
-	}
-
-	ASSERT(false);
-	*/
-	g_branchTrampoline.Write6Branch(CalculateChargePointsPerUse_Original.GetUIntPtr(), (uintptr_t)CalculateChargePointsPerUse_Hook);
+	SKSE::SafeWrite16(GetEffectiveSkillLevel.GetAddress() + 0x34, 0x9090);
 
 
+	auto trampoline = SKSE::GetTrampoline();
+
+	trampoline->Write6Branch(ImproveSkillByTraining_Original.GetAddress(), (uintptr_t)ImproveSkillByTraining_Hook);
+	_MESSAGE("ImproveLevelExpBySkillLevel_Original: %016I64X", ImproveLevelExpBySkillLevel_Original.GetAddress());
+
+	trampoline->Write6Branch(CalculateChargePointsPerUse_Original.GetAddress(), (uintptr_t)CalculateChargePointsPerUse_Hook);
+	_MESSAGE("CalculateChargePointsPerUse_Original: %016I64X", CalculateChargePointsPerUse_Original.GetAddress());
+
+
+	struct ImprovePlayerSkillPoints_Code : SKSE::CodeGenerator
 	{
-		struct ImproveLevelExpBySkillLevel_Code : Xbyak::CodeGenerator
-		{
-			ImproveLevelExpBySkillLevel_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
-			{
-				Xbyak::Label retnLabel;
-
-				push(rcx);
-				push(rdx);
-				mov(rdx, rsi);
-				sub(rsp, 0x20);
-				call((void *)&ImproveLevelExpBySkillLevel_Hook);
-				add(rsp, 0x20);
-				pop(rdx);
-				pop(rcx);
-				jmp(ptr[rip + retnLabel]);
+		ImprovePlayerSkillPoints_Code(int a_int) : SKSE::CodeGenerator() {
+			Xbyak::Label retnLabel;
+			push(rcx);
+			push(rdx);
+			mov(rdx, rsi);
+			sub(rsp, 0x20);
+			mov(rax,(std::uintptr_t)ImproveLevelExpBySkillLevel_Hook);
+			call(rax);
+			//call((void*)&ImproveLevelExpBySkillLevel_Hook);
+			add(rsp, 0x20);
+			pop(rdx);
+			pop(rcx);
+			jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(ImprovePlayerSkillPoints.GetUIntPtr() + 0x230);
-			}
-		};
+			dq(ImprovePlayerSkillPoints.GetAddress() + 0x230);
+		}
+	};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		ImproveLevelExpBySkillLevel_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+	ImprovePlayerSkillPoints_Code ImprovePlayerSkillPoints_Code(0);
+	ImprovePlayerSkillPoints_Code.finalize();
 
-		g_branchTrampoline.Write5Branch(ImprovePlayerSkillPoints.GetUIntPtr() + 0x22B, uintptr_t(code.getCode()));
-	}
+	trampoline = SKSE::GetTrampoline();
+	trampoline->Write5Branch(ImprovePlayerSkillPoints.GetAddress() + 0x22B, uintptr_t(ImprovePlayerSkillPoints_Code.getCode()));
+	_MESSAGE("ImprovePlayerSkillPoints: %016I64X", ImprovePlayerSkillPoints.GetAddress());
+
 
 	{
 
-		struct ModifyPerkPool_Code : Xbyak::CodeGenerator
+		struct ModifyPerkPool_Code : SKSE::CodeGenerator
 		{
-			ModifyPerkPool_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			ModifyPerkPool_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 
 				mov(rcx, rbx);
 				sub(rsp, 0x20);
-				call((void *)&ModifyPerkPool_Hook);
+				mov(rax, (std::uintptr_t)ModifyPerkPool_Hook);
+				call(rax);
 				add(rsp, 0x20);
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(kHook_ModifyPerkPool_Ret.GetUIntPtr());
+				dq(kHook_ModifyPerkPool_Ret.GetAddress());
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		ModifyPerkPool_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		ModifyPerkPool_Code ModifyPerkPool_Code(0);
+		ModifyPerkPool_Code.finalize();
 
-		g_branchTrampoline.Write5Branch(kHook_ModifyPerkPool_Ent.GetUIntPtr(), uintptr_t(code.getCode()));
+		trampoline = SKSE::GetTrampoline();
+		trampoline->Write5Branch(kHook_ModifyPerkPool_Ent.GetAddress() + 0x22B, uintptr_t(ModifyPerkPool_Code.getCode()));
+		_MESSAGE("kHook_ModifyPerkPool_Ent: %016I64X", kHook_ModifyPerkPool_Ent.GetAddress());
 	}
 
 	{
 
-		struct SkillCapPatch_Code : Xbyak::CodeGenerator
+		struct SkillCapPatch_Code : SKSE::CodeGenerator
 		{
-			SkillCapPatch_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			SkillCapPatch_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 
 				mov(rcx, rsi);
 				sub(rsp, 0x30);
 				movss(ptr[rsp + 0x28], xmm0);
-				call((void *)&GetSkillCap_Hook);
+				mov(rax, (std::uintptr_t)GetSkillCap_Hook);
+				call(rax);
 				movss(xmm8, xmm0);
 				movss(xmm0, ptr[rsp + 0x28]);
 				add(rsp, 0x30);
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(kHook_SkillCapPatch_Ret.GetUIntPtr());
+				dq(kHook_SkillCapPatch_Ret.GetAddress());
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		SkillCapPatch_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		SkillCapPatch_Code SkillCapPatch_Code(0);
+		SkillCapPatch_Code.finalize();
 
-		g_branchTrampoline.Write5Branch(kHook_SkillCapPatch_Ent.GetUIntPtr(), uintptr_t(code.getCode()));
+		trampoline = SKSE::GetTrampoline();
+		trampoline->Write5Branch(kHook_SkillCapPatch_Ent.GetAddress() + 0x22B, uintptr_t(SkillCapPatch_Code.getCode()));
+		_MESSAGE("kHook_SkillCapPatch_Ent: %016I64X", kHook_SkillCapPatch_Ent.GetAddress());
 	}
 
 
 	{
-		struct ImprovePlayerSkillPoints_Code : Xbyak::CodeGenerator
+		struct ImprovePlayerSkillPoints_Code : SKSE::CodeGenerator
 		{
-			ImprovePlayerSkillPoints_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			ImprovePlayerSkillPoints_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 
@@ -572,23 +488,25 @@ void Hook_Skill_Commit()
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(ImprovePlayerSkillPoints.GetUIntPtr() + 0x5);
+				dq(ImprovePlayerSkillPoints.GetAddress() + 0x5);
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		ImprovePlayerSkillPoints_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		ImprovePlayerSkillPoints_Code ImprovePlayerSkillPoints_Code(0);
+		ImprovePlayerSkillPoints_Code.finalize();
+
+		trampoline = SKSE::GetTrampoline();
+		void * codeBuf = trampoline->StartAlloc();
 
 		ImprovePlayerSkillPoints_Original = (_ImprovePlayerSkillPoints)codeBuf;
 
-		g_branchTrampoline.Write5Branch(ImprovePlayerSkillPoints.GetUIntPtr(), (uintptr_t)ImprovePlayerSkillPoints_Hook);
+		trampoline->Write5Branch(ImprovePlayerSkillPoints.GetAddress(), (uintptr_t)ImprovePlayerSkillPoints_Hook);
 	}
 
 	{
-		struct ImproveAttributeWhenLevelUp_Code : Xbyak::CodeGenerator
+		struct ImproveAttributeWhenLevelUp_Code : SKSE::CodeGenerator
 		{
-			ImproveAttributeWhenLevelUp_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			ImproveAttributeWhenLevelUp_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 
@@ -598,25 +516,27 @@ void Hook_Skill_Commit()
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(ImproveAttributeWhenLevelUp.GetUIntPtr() + 0x6);
+				dq(ImproveAttributeWhenLevelUp.GetAddress() + 0x6);
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		ImproveAttributeWhenLevelUp_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		ImproveAttributeWhenLevelUp_Code ImproveAttributeWhenLevelUp_Code(0);
+		ImproveAttributeWhenLevelUp_Code.finalize();
+
+		trampoline = SKSE::GetTrampoline();
+		void* codeBuf = trampoline->StartAlloc();
 
 		ImproveAttributeWhenLevelUp_Original = (_ImproveAttributeWhenLevelUp)codeBuf;
 
-		g_branchTrampoline.Write6Branch(ImproveAttributeWhenLevelUp.GetUIntPtr(), (uintptr_t)ImproveAttributeWhenLevelUp_Hook);
+		trampoline->Write6Branch(ImproveAttributeWhenLevelUp.GetAddress(), (uintptr_t)ImproveAttributeWhenLevelUp_Hook);
 
-		SafeWrite8(ImproveAttributeWhenLevelUp.GetUIntPtr() + 0x9B, 0);
+		SKSE::SafeWrite8(ImproveAttributeWhenLevelUp.GetAddress() + 0x9B, 0);
 	}
 
 	{
-		struct GetCurrentActorValue_Code : Xbyak::CodeGenerator
+		struct GetCurrentActorValue_Code : SKSE::CodeGenerator
 		{
-			GetCurrentActorValue_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			GetCurrentActorValue_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 
@@ -628,94 +548,100 @@ void Hook_Skill_Commit()
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(GetCurrentActorValue.GetUIntPtr() + 0x6);
+				dq(GetCurrentActorValue.GetAddress() + 0x6);
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		GetCurrentActorValue_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		GetCurrentActorValue_Code GetCurrentActorValue_Code(0);
+		GetCurrentActorValue_Code.finalize();
+
+		trampoline = SKSE::GetTrampoline();
+		void* codeBuf = trampoline->StartAlloc();
 
 		GetCurrentActorValue_Original = (_GetCurrentActorValue)codeBuf;
 
-		g_branchTrampoline.Write6Branch(GetCurrentActorValue.GetUIntPtr(), (uintptr_t)GetCurrentActorValue_Hook);
-
+		trampoline->Write6Branch(GetCurrentActorValue.GetAddress(), (uintptr_t)GetCurrentActorValue_Hook);
 	}
 
 	{
-		struct ExecuteLegendarySkill_Code : Xbyak::CodeGenerator
+		struct ExecuteLegendarySkill_Code : SKSE::CodeGenerator
 		{
-			ExecuteLegendarySkill_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			ExecuteLegendarySkill_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 
 				mov(edx, ptr[rsi + 0x1C]);
-				call((void*)&LegendaryResetSkillLevel_Hook);
+				mov(rax, (std::uintptr_t)LegendaryResetSkillLevel_Hook);
+				call(rax);
 
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(kHook_ExecuteLegendarySkill_Ret.GetUIntPtr());
+				dq(kHook_ExecuteLegendarySkill_Ret.GetAddress());
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		ExecuteLegendarySkill_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		ExecuteLegendarySkill_Code ExecuteLegendarySkill_Code(0);
+		ExecuteLegendarySkill_Code.finalize();
 
-		g_branchTrampoline.Write6Branch(kHook_ExecuteLegendarySkill_Ent.GetUIntPtr(), uintptr_t(code.getCode()));
+		trampoline = SKSE::GetTrampoline();
+		trampoline->Write6Branch(kHook_ExecuteLegendarySkill_Ent.GetAddress(), uintptr_t(ExecuteLegendarySkill_Code.getCode()));
 	}
 
 	{
-		struct CheckConditionForLegendarySkill_Code : Xbyak::CodeGenerator
+		struct CheckConditionForLegendarySkill_Code : SKSE::CodeGenerator
 		{
-			CheckConditionForLegendarySkill_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			CheckConditionForLegendarySkill_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 
 				mov(edx, eax);
 				lea(rcx, ptr[rdi + 0xB0]);
-				call((void*)&CheckConditionForLegendarySkill_Hook);
+				mov(rax, (std::uintptr_t)CheckConditionForLegendarySkill_Hook);
+				call(rax);
 				cmp(al, 1);
 
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(kHook_CheckConditionForLegendarySkill_Ret.GetUIntPtr());
+				dq(kHook_CheckConditionForLegendarySkill_Ret.GetAddress());
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		CheckConditionForLegendarySkill_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		CheckConditionForLegendarySkill_Code CheckConditionForLegendarySkill_Code(0);
+		CheckConditionForLegendarySkill_Code.finalize();
 
-		g_branchTrampoline.Write6Branch(kHook_CheckConditionForLegendarySkill_Ent.GetUIntPtr(), uintptr_t(code.getCode()));
+		trampoline = SKSE::GetTrampoline();
+		trampoline->Write6Branch(kHook_CheckConditionForLegendarySkill_Ent.GetAddress(), uintptr_t(CheckConditionForLegendarySkill_Code.getCode()));
 	}
 
 	{
-		struct HideLegendaryButton_Code : Xbyak::CodeGenerator
+		struct HideLegendaryButton_Code : SKSE::CodeGenerator
 		{
-			HideLegendaryButton_Code(void * buf) : Xbyak::CodeGenerator(4096, buf)
+			HideLegendaryButton_Code(int a_int) : SKSE::CodeGenerator()
 			{
 				Xbyak::Label retnLabel;
 				mov(ecx, esi);
-				call((void*)&HideLegendaryButton_Hook);
+				mov(rax, (std::uintptr_t)HideLegendaryButton_Hook);
+				call(rax);
 				cmp(al, 1);
 
 				jmp(ptr[rip + retnLabel]);
 
 			L(retnLabel);
-				dq(kHook_HideLegendaryButton_Ret.GetUIntPtr());
+				dq(kHook_HideLegendaryButton_Ret.GetAddress());
 			}
 		};
 
-		void * codeBuf = g_localTrampoline.StartAlloc();
-		HideLegendaryButton_Code code(codeBuf);
-		g_localTrampoline.EndAlloc(code.getCurr());
+		HideLegendaryButton_Code HideLegendaryButton_Code(0);
+		HideLegendaryButton_Code.finalize();
 
-		g_branchTrampoline.Write6Branch(kHook_HideLegendaryButton_Ent.GetUIntPtr(), uintptr_t(code.getCode()));
+		trampoline = SKSE::GetTrampoline();
+		trampoline->Write6Branch(kHook_HideLegendaryButton_Ent.GetAddress(), uintptr_t(HideLegendaryButton_Code.getCode()));
 
 	}
+
+	
 }
 
 
